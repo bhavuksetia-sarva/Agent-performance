@@ -233,7 +233,7 @@
       <select id="rollsFilter">
         <option value="ALL">All orders</option>
         <option value="ONLY">1.8m rolls only</option>
-        <option value="EXCLUDE">Exclude 1.8m rolls</option>
+        <option value="EXCLUDE" selected>Exclude 1.8m rolls</option>
       </select>
     </div>
     <button class="reset-btn" id="resetBtn">Reset filters</button>
@@ -329,7 +329,7 @@
   </div>
 
   <footer>
-    Invoice values shown net of 20% VAT (invoice value &divide; 1.2). Source: order_data.xlsx &middot; 98 agent-linked orders, Apr&ndash;Aug 2026.
+    Invoice values shown net of 20% VAT (invoice value &divide; 1.2). Default view excludes 1.8m rolls orders &mdash; use the filter above to include or isolate them. Source: order_data.xlsx &middot; 98 agent-linked orders, Apr&ndash;Aug 2026.
   </footer>
 
 </div>
@@ -681,7 +681,7 @@ document.getElementById('resetBtn').addEventListener('click', ()=>{
   dateFrom.value = allDates[0];
   dateTo.value = allDates[allDates.length-1];
   agentSelect.value = 'ALL';
-  document.getElementById('rollsFilter').value = 'ALL';
+  document.getElementById('rollsFilter').value = 'EXCLUDE';
   render();
 });
 
