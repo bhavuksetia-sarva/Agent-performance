@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Performance Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --paper:#F7F3EC;
+    --panel:#FFFFFF;
+    --ink:#231F1A;
+    --ink-soft:#5B5548;
+    --walnut:#5C3C28;
+    --brass:#A9803D;
+    --brass-soft:#D9C08F;
+    --sage:#5E6E58;
+    --line:#E4DCCB;
+    --rule:#D8CDB4;
+    --good:#4B6A50;
+    --warn:#A9482F;
+    --shadow: 0 1px 2px rgba(35,31,26,0.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:14px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1240px;margin:0 auto;padding:28px 32px 60px;}
+
+  header{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:2px solid var(--ink);
+    padding-bottom:18px;margin-bottom:22px;flex-wrap:wrap;gap:14px;
+  }
+  .brandline{display:flex;flex-direction:column;gap:2px;}
+  .eyebrow{font-size:11.5px;letter-spacing:0.02em;color:var(--brass);font-weight:600;}
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:500;
+    font-size:32px;
+    margin:0;
+    letter-spacing:-0.01em;
+    color:var(--ink);
+  }
+  .subtitle{color:var(--ink-soft);font-size:13px;margin-top:2px;}
+  .datestamp{text-align:right;color:var(--ink-soft);font-size:12.5px;}
+  .datestamp b{color:var(--ink);font-weight:600;}
+
+  .filterbar{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:16px 20px;
+    margin-bottom:24px;
+    display:flex;
+    gap:26px;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    box-shadow:var(--shadow);
+  }
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{font-size:11px;color:var(--ink-soft);font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+  .field input[type=date], .field select{
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:13.5px;
+    padding:7px 10px;
+    border:1px solid var(--rule);
+    border-radius:2px;
+    background:var(--paper);
+    color:var(--ink);
+    min-width:150px;
+  }
+  .field select{min-width:180px;}
+  .field input:focus,.field select:focus{outline:2px solid var(--brass-soft);outline-offset:1px;}
+  .reset-btn{
+    margin-left:auto;
+    background:none;
+    border:1px solid var(--ink-soft);
+    color:var(--ink-soft);
+    font-size:12.5px;
+    padding:8px 14px;
+    border-radius:2px;
+    cursor:pointer;
+    font-family:'IBM Plex Sans',sans-serif;
+    align-self:flex-end;
+  }
+  .reset-btn:hover{border-color:var(--ink);color:var(--ink);}
+
+  .kpis{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+    margin-bottom:26px;
+  }
+  .kpi{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:18px 20px;
+    box-shadow:var(--shadow);
+    position:relative;
+    overflow:hidden;
+  }
+  .kpi::before{
+    content:'';
+    position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--brass);
+  }
+  .kpi .label{font-size:11.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;font-weight:600;}
+  .kpi .value{
+    font-family:'Fraunces',serif;
+    font-size:30px;
+    font-weight:500;
+    color:var(--ink);
+    margin-top:6px;
+    letter-spacing:-0.01em;
+  }
+  .kpi .sub{font-size:12px;color:var(--ink-soft);margin-top:4px;}
+
+  .section-title{
+    font-family:'Fraunces',serif;
+    font-size:19px;
+    font-weight:500;
+    margin:0 0 4px 0;
+    color:var(--ink);
+  }
+  .section-desc{font-size:12.5px;color:var(--ink-soft);margin-bottom:14px;}
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:20px 22px;
+    box-shadow:var(--shadow);
+    margin-bottom:22px;
+  }
+
+  .row2{display:grid;grid-template-columns:1.3fr 1fr;gap:22px;}
+  @media (max-width:900px){.row2{grid-template-columns:1fr;} .kpis{grid-template-columns:repeat(2,1fr);}}
+
+  canvas{max-width:100%;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    text-align:left;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+    color:var(--ink-soft);
+    font-weight:600;
+    border-bottom:1.5px solid var(--ink);
+    padding:8px 10px;
+  }
+  tbody td{
+    padding:9px 10px;
+    border-bottom:1px solid var(--line);
+    color:var(--ink);
+  }
+  tbody tr:hover{background:#FBF8F1;}
+  td.num, th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  tfoot td{
+    font-weight:700;
+    border-top:2px solid var(--ink);
+    border-bottom:none;
+    padding:10px;
+  }
+  .agent-chip{
+    display:inline-flex;align-items:center;gap:7px;font-weight:600;
+  }
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+
+  .month-orders{color:var(--ink-soft);}
+  .month-invoice{color:var(--walnut);font-weight:600;}
+
+  .share-bar-track{
+    position:relative;background:#EFE9DB;border-radius:2px;height:8px;width:100%;min-width:80px;overflow:hidden;
+  }
+  .share-bar-fill{
+    position:absolute;left:0;top:0;bottom:0;background:var(--brass);border-radius:2px;
+  }
+
+  .empty-state{
+    text-align:center;padding:50px 20px;color:var(--ink-soft);
+    font-size:14px;
+  }
+
+  footer{
+    text-align:center;color:var(--ink-soft);font-size:11.5px;margin-top:30px;
+    border-top:1px solid var(--line);padding-top:14px;
+  }
+
+  .scroll-x{overflow-x:auto;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brandline">
+      <div class="eyebrow">Sales Operations</div>
+      <h1>Agent Performance Dashboard</h1>
+      <div class="subtitle">Orders, revenue and commission by agent &mdash; grouped by order month</div>
+    </div>
+    <div class="datestamp">
+      Data window: <b id="dataRangeLabel">&ndash;</b><br>
+      <span id="orderCountLabel"></span>
+    </div>
+  </header>
+
+  <div class="filterbar">
+    <div class="field">
+      <label for="dateFrom">Order Date From</label>
+      <input type="date" id="dateFrom">
+    </div>
+    <div class="field">
+      <label for="dateTo">Order Date To</label>
+      <input type="date" id="dateTo">
+    </div>
+    <div class="field">
+      <label for="agentSelect">Agent</label>
+      <select id="agentSelect">
+        <option value="ALL">All agents</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="rollsFilter">1.8m Rolls</label>
+      <select id="rollsFilter">
+        <option value="ALL">All orders</option>
+        <option value="ONLY">1.8m rolls only</option>
+        <option value="EXCLUDE">Exclude 1.8m rolls</option>
+      </select>
+    </div>
+    <button class="reset-btn" id="resetBtn">Reset filters</button>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi">
+      <div class="label">Total Orders</div>
+      <div class="value" id="kpiOrders">&ndash;</div>
+      <div class="sub" id="kpiOrdersSub">&nbsp;</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Invoice Value (ex. 20% VAT)</div>
+      <div class="value" id="kpiNetInvoice">&ndash;</div>
+      <div class="sub" id="kpiNetInvoiceSub">&nbsp;</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Commission Paid</div>
+      <div class="value" id="kpiCommission">&ndash;</div>
+      <div class="sub" id="kpiCommissionSub">&nbsp;</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Units Ordered</div>
+      <div class="value" id="kpiUnits">&ndash;</div>
+      <div class="sub" id="kpiUnitsSub">&nbsp;</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="section-title">Monthly Orders &amp; Net Invoice Value by Agent</div>
+    <div class="section-desc">Bars = order count (left axis) &middot; Line = invoice value net of 20% VAT, &pound; (right axis). Grouped by order date month.</div>
+    <canvas id="monthlyChart" height="90"></canvas>
+  </div>
+
+  <div class="row2">
+    <div class="panel">
+      <div class="section-title">Agent Summary</div>
+      <div class="section-desc">Totals for the selected period and filters, ordered by net invoice value.</div>
+      <div class="scroll-x">
+      <table id="agentTable">
+        <thead>
+          <tr>
+            <th>Agent</th>
+            <th class="num">Orders</th>
+            <th class="num">Units</th>
+            <th class="num">Invoice (net VAT)</th>
+            <th class="num">Commission</th>
+            <th class="num">Avg Order (net VAT)</th>
+            <th class="num">Comm. %</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot></tfoot>
+      </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="section-title">Product Mix</div>
+      <div class="section-desc">Total units ordered by product category, for the current filters.</div>
+      <canvas id="productChart" height="230"></canvas>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="section-title">Product Breakdown &mdash; Share of Total</div>
+    <div class="section-desc">Units ordered per product category and its share of the total, for the current filters.</div>
+    <div class="scroll-x">
+    <table id="productTable">
+      <thead>
+        <tr>
+          <th>Product Category</th>
+          <th class="num">Units</th>
+          <th class="num">% of Total</th>
+          <th style="min-width:120px;">Share</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+      <tfoot></tfoot>
+    </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="section-title">Monthly Detail &mdash; Orders &amp; Net Invoice Value</div>
+    <div class="section-desc">Order count and invoice value net of 20% VAT, by agent and order month.</div>
+    <div class="scroll-x">
+    <table id="monthTable">
+      <thead><tr id="monthTableHead"></tr></thead>
+      <tbody id="monthTableBody"></tbody>
+    </table>
+    </div>
+  </div>
+
+  <footer>
+    Invoice values shown net of 20% VAT (invoice value &divide; 1.2). Source: order_data.xlsx &middot; 98 agent-linked orders, Apr&ndash;Aug 2026.
+  </footer>
+
+</div>
+
+<script>
+const RAW_ORDERS = [{"order_id": "f27c562d", "order_date": "2026-04-06", "customer": "Kellars Limited", "agent": "Matt Bell", "status": "Paid", "invoice_value": 7929.6, "commission_value": 165.2, "is_1_8m_rolls": false, "products": [{"category": "Duo 10mm", "qty": 500.0}], "total_qty": 500.0}, {"order_id": "f2822974", "order_date": "2026-04-01", "customer": "Plush Living Ltd.", "agent": "Ranjit Aujla", "status": "Paid", "invoice_value": 5316.0, "commission_value": 221.5, "is_1_8m_rolls": false, "products": [{"category": "B grade", "qty": 650.0}], "total_qty": 650.0}, {"order_id": "8feceb19", "order_date": "2026-04-01", "customer": "Witch Group", "agent": "Matt Bell", "status": "Paid", "invoice_value": 3444.0, "commission_value": 71.75, "is_1_8m_rolls": false, "products": [{"category": "Footlove 8", "qty": 205.0}], "total_qty": 205.0}, {"order_id": "ad552b6e", "order_date": "2026-04-02", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "Paid", "invoice_value": 5568.0, "commission_value": 232.0, "is_1_8m_rolls": false, "products": [{"category": "B grade", "qty": 550.0}], "total_qty": 550.0}, {"order_id": "3df0361d", "order_date": "2026-04-02", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "Paid", "invoice_value": 5472.0, "commission_value": 228.0, "is_1_8m_rolls": false, "products": [{"category": "B grade", "qty": 550.0}], "total_qty": 550.0}, {"order_id": "0f50d72d", "order_date": "2026-04-02", "customer": "Carpet Sales Centre", "agent": "Jon Marsh", "status": "Paid", "invoice_value": 9426.0, "commission_value": 392.75, "is_1_8m_rolls": false, "products": [{"category": "Footlove 8", "qty": 250.0}, {"category": "Footlove 10", "qty": 200.0}, {"category": "Footbliss 9", "qty": 50.0}], "total_qty": 500.0}, {"order_id": "d76d4f8e", "order_date": "2026-04-04", "customer": "Abdullah and Sons Co Ltd", "agent": "Ranjit Aujla", "status": "Paid", "invoice_value": 5940.0, "commission_value": 247.5, "is_1_8m_rolls": false, "products": [{"category": "B grade", "qty": 650.0}], "total_qty": 650.0}, {"order_id": "35d96ac8", "order_date": "2026-04-14", "customer": "Witch Group", "agent": "Matt Bell", "status": "Paid", "invoice_value": 1596.0, "commission_value": 33.25, "is_1_8m_rolls": false, "products": [{"category": "Footlove 8", "qty": 95.0}], "total_qty": 95.0}, {"order_id": "c28d6993", "order_date": "2026-04-15", "customer": "Kellars Limited", "agent": "Matt Bell", "status": "Pending", "invoice_value": 20880.0, "commission_value": 522.0, "is_1_8m_rolls": false, "products": [{"category": "Footboard 3.5", "qty": 1500.0}], "total_qty": 1500.0}, {"order_id": "a4050645", "order_date": "2026-04-18", "customer": "Abdullah and Sons Co Ltd", "agent": "Ranjit Aujla", "status": "Paid", "invoice_value": 6024.0, "commission_value": 251.0, "is_1_8m_rolls": false, "products": [{"category": "B grade", "qty": 650.0}], "total_qty": 650.0}, {"order_id": "dcd5528c", "order_date": "2026-04-18", "customer": "Abdullah and Sons Co Ltd", "agent": "Ranjit Aujla", "status": "Paid", "invoice_value": 5592.0, "commission_value": 233.0, "is_1_8m_rolls": false, "products": [{"category": "B grade", "qty": 650.0}], "total_qty": 650.0}, {"order_id": "c7263ffc", "order_date": "2026-04-18", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 5712.0, "commission_value": 238.0, "is_1_8m_rolls": false, "products": [{"category": "B grade", "qty": 650.0}], "total_qty": 650.0}, {"order_id": "4cebe14c", "order_date": "2026-04-21", "customer": "Flooring distribution supplies Ltd", "agent": "Jon Marsh", "status": "Delivered", "invoice_value": 9360.0, "commission_value": 0.0, "is_1_8m_rolls": false, "products": [{"category": "Footboard 3.5", "qty": 50.0}, {"category": "Footbliss 9", "qty": 50.0}, {"category": "Footlove 10", "qty": 100.0}, {"category": "Footlove 8", "qty": 300.0}], "total_qty": 500.0}, {"order_id": "ecb63a01", "order_date": "2026-04-23", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "Paid", "invoice_value": 11861.4, "commission_value": 494.23, "is_1_8m_rolls": false, "products": [{"category": "Footbliss 11", "qty": 500.0}], "total_qty": 500.0}, {"order_id": "ed5615fd", "order_date": "2026-04-23", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "Paid", "invoice_value": 15267.6, "commission_value": 636.15, "is_1_8m_rolls": false, "products": [{"category": "Footopus", "qty": 100.0}, {"category": "Footboard 3.5", "qty": 400.0}, {"category": "Footbliss 11", "qty": 100.0}, {"category": "Footluxe 11", "qty": 100.0}], "total_qty": 700.0}, {"order_id": "8ed87491", "order_date": "2026-04-23", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 14311.2, "commission_value": 596.3, "is_1_8m_rolls": false, "products": [{"category": "Footluxe 11", "qty": 500.0}], "total_qty": 500.0}, {"order_id": "603de90f", "order_date": "2026-04-23", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 12921.0, "commission_value": 538.38, "is_1_8m_rolls": false, "products": [{"category": "Footbliss 9", "qty": 250.0}, {"category": "Footluxe 9", "qty": 250.0}], "total_qty": 500.0}, {"order_id": "9b6001f9", "order_date": "2026-04-23", "customer": "Perfect Carpets and Flooring Limited", "agent": "Ranjit Aujla", "status": "Delivered", "invoice_value": 6585.6, "commission_value": 274.4, "is_1_8m_rolls": false, "products": [{"category": "Footluxe 11", "qty": 50.0}, {"category": "B grade", "qty": 600.0}], "total_qty": 650.0}, {"order_id": "14499fc6", "order_date": "2026-04-23", "customer": "Discount Warehouse Totton Ltd (DW Flooring)", "agent": "Ranjit Aujla", "status": "Paid", "invoice_value": 9846.0, "commission_value": 410.25, "is_1_8m_rolls": false, "products": [{"category": "Footbliss 9", "qty": 50.0}, {"category": "Footlove 8", "qty": 500.0}], "total_qty": 550.0}, {"order_id": "fc209576", "order_date": "2026-04-23", "customer": "Discount Carpets (Purley way carpets  ltd )", "agent": "Jon Marsh", "status": "Delivered", "invoice_value": 9060.0, "commission_value": 377.5, "is_1_8m_rolls": false, "products": [{"category": "Footbliss 11", "qty": 100.0}, {"category": "Footlove 8", "qty": 170.0}, {"category": "Footlove 10", "qty": 170.0}], "total_qty": 440.0}, {"order_id": "5add2b15", "order_date": "2026-04-24", "customer": "Warehouse Brands Group", "agent": "Matt Bell", "status": "Paid", "invoice_value": 8700.0, "commission_value": 362.5, "is_1_8m_rolls": false, "products": [{"category": "Footlove 8", "qty": 550.0}], "total_qty": 550.0}, {"order_id": "74c27343", "order_date": "2026-04-24", "customer": "Furlong Flooring (Southern) Ltd.", "agent": "Stephen Fell", "status": "Delivered", "invoice_value": 20160.0, "commission_value": 0.0, "is_1_8m_rolls": false, "products": [{"category": "Footboard 3.5", "qty": 1500.0}], "total_qty": 1500.0}, {"order_id": "a179c4a4", "order_date": "2026-04-24", "customer": "Carpet World Flooring LTD", "agent": "Ranjit Aujla", "status": "Delivered", "invoice_value": 9626.76, "commission_value": 401.12, "is_1_8m_rolls": false, "products": [{"category": "Footlove 10", "qty": 450.0}], "total_qty": 450.0}, {"order_id": "4c2a73a0", "order_date": "2026-04-24", "customer": "Tapsell Carpets", "agent": "Jon Marsh", "status": "Paid", "invoice_value": 8448.0, "commission_value": 0.0, "is_1_8m_rolls": false, "products": [{"category": "Footlove 10", "qty": 450.0}], "total_qty": 450.0}, {"order_id": "c43ccae7", "order_date": "2026-04-24", "customer": "Rainbow Carpets", "agent": "Jon Marsh", "status": "Delivered", "invoice_value": 9075.6, "commission_value": 378.15, "is_1_8m_rolls": false, "products": [{"category": "Footlove 8", "qty": 150.0}, {"category": "Footlove 10", "qty": 150.0}, {"category": "Footbliss 9", "qty": 40.0}, {"category": "Footbliss 11", "qty": 40.0}, {"category": "Footwork 6.5", "qty": 10.0}, {"category": "Footluxe 9", "qty": 10.0}, {"category": "Footluxe 11", "qty": 10.0}], "total_qty": 410.0}, {"order_id": "e8ddf41e", "order_date": "2026-04-24", "customer": "Jims Carpets Ltd t/as Floorstore", "agent": "Jon Marsh", "status": "Paid", "invoice_value": 9324.0, "commission_value": 388.5, "is_1_8m_rolls": false, "products": [{"category": "Footlove 8", "qty": 500.0}], "total_qty": 500.0}, {"order_id": "2ef88cf8", "order_date": "2026-04-24", "customer": "Furlong Flooring (Southern) Ltd.", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 18513.6, "commission_value": 771.4, "is_1_8m_rolls": false, "products": [{"category": "Footboard 3.5", "qty": 1300.0}], "total_qty": 1300.0}, {"order_id": "47ba0412", "order_date": "2026-05-06", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "Paid", "invoice_value": 5652.0, "commission_value": 235.5, "is_1_8m_rolls": false, "products": [{"category": "B grade", "qty": 650.0}], "total_qty": 650.0}, {"order_id": "a9bdf6e8", "order_date": "2026-05-13", "customer": "Warehouse Brands Group", "agent": "Matt Bell", "status": "Paid", "invoice_value": 8494.2, "commission_value": 353.93, "is_1_8m_rolls": false, "products": [{"category": "Footlove 10", "qty": 500.0}], "total_qty": 500.0}, {"order_id": "00ba8b23", "order_date": "2026-05-13", "customer": "Warehouse Brands Group", "agent": "Matt Bell", "status": "Paid", "invoice_value": 7862.4, "commission_value": 327.6, "is_1_8m_rolls": false, "products": [{"category": "Footlove 12", "qty": 450.0}], "total_qty": 450.0}, {"order_id": "f1c49ec9", "order_date": "2026-05-13", "customer": "Warehouse Brands Group", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 10725.0, "commission_value": 446.88, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 8", "qty": 550.0}], "total_qty": 550.0}, {"order_id": "14947654", "order_date": "2026-05-13", "customer": "Warehouse Brands Group", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 10450.44, "commission_value": 435.44, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "e936f7c7", "order_date": "2026-05-13", "customer": "Warehouse Brands Group", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 10140.9, "commission_value": 422.54, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 12", "qty": 450.0}], "total_qty": 450.0}, {"order_id": "5083230b", "order_date": "2026-05-13", "customer": "Warehouse Brands Group", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 10642.5, "commission_value": 443.44, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 8", "qty": 650.0}], "total_qty": 650.0}, {"order_id": "b841137a", "order_date": "2026-05-13", "customer": "Warehouse Brands Group", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 10527.0, "commission_value": 438.62, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "9c1b9b68", "order_date": "2026-05-13", "customer": "Warehouse Brands Group", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 11134.2, "commission_value": 463.93, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 12", "qty": 450.0}], "total_qty": 450.0}, {"order_id": "dabbbd06", "order_date": "2026-05-13", "customer": "Warehouse Brands Group", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 8870.4, "commission_value": 369.6, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 12", "qty": 500.0}], "total_qty": 500.0}, {"order_id": "226bee2f", "order_date": "2026-05-14", "customer": "Witch Group", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 12256.86, "commission_value": 255.35, "is_1_8m_rolls": false, "products": [{"category": "Footlove 8", "qty": 200.0}, {"category": "Footlove 10", "qty": 300.0}], "total_qty": 500.0}, {"order_id": "f9dc6583", "order_date": "2026-05-14", "customer": "Witch Group", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 11797.5, "commission_value": 245.78, "is_1_8m_rolls": false, "products": [{"category": "Footlove 8", "qty": 200.0}, {"category": "Footlove 10", "qty": 300.0}], "total_qty": 500.0}, {"order_id": "306cf75c", "order_date": "2026-05-14", "customer": "Witch Group", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 10195.02, "commission_value": 212.4, "is_1_8m_rolls": false, "products": [{"category": "Footlove 8", "qty": 200.0}, {"category": "Footlove 10", "qty": 300.0}], "total_qty": 500.0}, {"order_id": "98125327", "order_date": "2026-05-20", "customer": "Kellars Limited", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 5957.7, "commission_value": 124.12, "is_1_8m_rolls": false, "products": [{"category": "Primo 8mm", "qty": 200.0}, {"category": "Duo 10mm", "qty": 200.0}], "total_qty": 400.0}, {"order_id": "c7bc7971", "order_date": "2026-05-20", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 5652.0, "commission_value": 235.5, "is_1_8m_rolls": false, "products": [{"category": "B grade", "qty": 500.0}], "total_qty": 500.0}, {"order_id": "2a1295c7", "order_date": "2026-05-20", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 5304.0, "commission_value": 221.0, "is_1_8m_rolls": false, "products": [{"category": "B grade", "qty": 500.0}], "total_qty": 500.0}, {"order_id": "72821bab", "order_date": "2026-06-08", "customer": "Kellars Limited", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 7876.5, "commission_value": 164.09, "is_1_8m_rolls": false, "products": [{"category": "Duo 10mm", "qty": 500.0}], "total_qty": 500.0}, {"order_id": "1f435688", "order_date": "2026-06-08", "customer": "Kellars Limited", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 7870.2, "commission_value": 163.96, "is_1_8m_rolls": false, "products": [{"category": "Primo 8mm", "qty": 250.0}, {"category": "Duo 10mm", "qty": 250.0}], "total_qty": 500.0}, {"order_id": "440563cc", "order_date": "2026-06-08", "customer": "Kellars Limited", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 8279.1, "commission_value": 172.48, "is_1_8m_rolls": false, "products": [{"category": "Primo 8mm", "qty": 250.0}, {"category": "Duo 10mm", "qty": 250.0}], "total_qty": 500.0}, {"order_id": "c60a2bfb", "order_date": "2026-06-08", "customer": "Kellars Limited", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 7770.3, "commission_value": 161.88, "is_1_8m_rolls": false, "products": [{"category": "Primo 8mm", "qty": 250.0}, {"category": "Duo 10mm", "qty": 250.0}], "total_qty": 500.0}, {"order_id": "84f0b980", "order_date": "2026-06-08", "customer": "Kellars Limited", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 8175.9, "commission_value": 170.33, "is_1_8m_rolls": false, "products": [{"category": "Primo 8mm", "qty": 250.0}, {"category": "Duo 10mm", "qty": 250.0}], "total_qty": 500.0}, {"order_id": "d4aea0c8", "order_date": "2026-06-08", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 6612.0, "commission_value": 275.5, "is_1_8m_rolls": false, "products": [{"category": "B grade", "qty": 500.0}], "total_qty": 500.0}, {"order_id": "85412ca6", "order_date": "2026-06-22", "customer": "DC Flooring NE Limited", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 9810.0, "commission_value": 408.75, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "1e4fa659", "order_date": "2026-06-23", "customer": "Anglo Flooring", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 10566.0, "commission_value": 440.25, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 587.0}], "total_qty": 587.0}, {"order_id": "1fa1bd53", "order_date": "2026-06-23", "customer": "DM MILLER", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 9792.0, "commission_value": 408.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "a93c1698", "order_date": "2026-06-23", "customer": "DM MILLER", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 10008.0, "commission_value": 417.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "842cb034", "order_date": "2026-06-23", "customer": "DM MILLER", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 10494.0, "commission_value": 437.25, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "66a5bc7b", "order_date": "2026-06-23", "customer": "DM MILLER", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 10440.0, "commission_value": 435.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "56429bc5", "order_date": "2026-06-26", "customer": "DC Flooring NE Limited", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 10494.0, "commission_value": 437.25, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "7905aa7c", "order_date": "2026-06-26", "customer": "DC Flooring NE Limited", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 10440.0, "commission_value": 435.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "273b3b95", "order_date": "2026-06-26", "customer": "DC Flooring NE Limited", "agent": "Matt Bell", "status": "Goods Ready", "invoice_value": 10440.0, "commission_value": 435.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "29956a58", "order_date": "2026-07-02", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 10440.0, "commission_value": 435.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "5619aa16", "order_date": "2026-07-03", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 15941.76, "commission_value": 664.24, "is_1_8m_rolls": false, "products": [{"category": "Footbliss 9", "qty": 250.0}, {"category": "Footluxe 9", "qty": 250.0}], "total_qty": 500.0}, {"order_id": "54762bbc", "order_date": "2026-07-03", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "Goods Ready", "invoice_value": 10440.0, "commission_value": 435.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "e5277462", "order_date": "2026-07-03", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 10278.0, "commission_value": 428.25, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "402fb051", "order_date": "2026-07-03", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 8370.0, "commission_value": 348.75, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "dd10291b", "order_date": "2026-07-03", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 9666.0, "commission_value": 402.75, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "6d4173bb", "order_date": "2026-07-03", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 10566.0, "commission_value": 440.25, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "e21e3c8c", "order_date": "2026-07-07", "customer": "Kellars Limited", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 12465.6, "commission_value": 259.7, "is_1_8m_rolls": false, "products": [{"category": "Spring", "qty": 500.0}], "total_qty": 500.0}, {"order_id": "3c5c40ec", "order_date": "2026-07-07", "customer": "Kellars Limited", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 16858.8, "commission_value": 351.23, "is_1_8m_rolls": false, "products": [{"category": "Bloom", "qty": 500.0}], "total_qty": 500.0}, {"order_id": "c3250bf9", "order_date": "2026-07-07", "customer": "Kellars Limited", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 12464.4, "commission_value": 259.68, "is_1_8m_rolls": false, "products": [{"category": "Bounce", "qty": 250.0}, {"category": "Spring", "qty": 250.0}], "total_qty": 500.0}, {"order_id": "0a6e51b7", "order_date": "2026-07-07", "customer": "Kellars Limited", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 15912.6, "commission_value": 331.51, "is_1_8m_rolls": false, "products": [{"category": "Bloom", "qty": 250.0}, {"category": "Pulse", "qty": 250.0}], "total_qty": 500.0}, {"order_id": "75d41612", "order_date": "2026-07-07", "customer": "Kellars Limited", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 16291.8, "commission_value": 339.41, "is_1_8m_rolls": false, "products": [{"category": "Bloom", "qty": 250.0}, {"category": "Pulse", "qty": 250.0}], "total_qty": 500.0}, {"order_id": "9485bffd", "order_date": "2026-07-08", "customer": "Heritage Carpets Ls Ltd", "agent": "Ranjit Aujla", "status": "In Transit", "invoice_value": 5061.6, "commission_value": 210.9, "is_1_8m_rolls": true, "products": [{"category": "StepAcclaim", "qty": 300.0}], "total_qty": 300.0}, {"order_id": "dc1864f0", "order_date": "2026-07-15", "customer": "Witch Group", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 9990.0, "commission_value": 208.12, "is_1_8m_rolls": false, "products": [{"category": "Footlove 8", "qty": 555.0}], "total_qty": 555.0}, {"order_id": "63ee07f9", "order_date": "2026-07-17", "customer": "DM MILLER", "agent": "Matt Bell", "status": "In Production", "invoice_value": 10440.0, "commission_value": 435.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "c6d1b35c", "order_date": "2026-07-22", "customer": "Carpet Sales Centre", "agent": "Jon Marsh", "status": "In Transit", "invoice_value": 12087.6, "commission_value": 503.65, "is_1_8m_rolls": false, "products": [{"category": "Footlove 8", "qty": 150.0}, {"category": "Footlove 10", "qty": 200.0}, {"category": "Footbliss 9", "qty": 60.0}, {"category": "Footbliss 11", "qty": 40.0}], "total_qty": 450.0}, {"order_id": "4c1803b8", "order_date": "2026-08-04", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "In Production", "invoice_value": 10440.0, "commission_value": 435.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "884ac841", "order_date": "2026-08-04", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "In Production", "invoice_value": 10440.0, "commission_value": 435.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "252be661", "order_date": "2026-08-04", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "Pending", "invoice_value": 10440.0, "commission_value": 435.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "26da4f72", "order_date": "2026-08-04", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "Pending", "invoice_value": 10440.0, "commission_value": 435.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "0ea35f5b", "order_date": "2026-08-04", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "Pending", "invoice_value": 10440.0, "commission_value": 435.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "4adf0e0f", "order_date": "2026-08-04", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "Pending", "invoice_value": 10440.0, "commission_value": 435.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "f2b3a261", "order_date": "2026-08-05", "customer": "Simple GRASS LTD (Simple Carpets)", "agent": "Jon Marsh", "status": "In Transit", "invoice_value": 11628.0, "commission_value": 484.5, "is_1_8m_rolls": false, "products": [{"category": "Footlove 10", "qty": 480.0}], "total_qty": 480.0}, {"order_id": "0ea4bf68", "order_date": "2026-08-05", "customer": "DM MILLER", "agent": "Matt Bell", "status": "Pending", "invoice_value": 10440.0, "commission_value": 435.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "c28b6df9", "order_date": "2026-08-05", "customer": "DM MILLER", "agent": "Matt Bell", "status": "Pending", "invoice_value": 10440.0, "commission_value": 435.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "33fc2eae", "order_date": "2026-08-05", "customer": "DM MILLER", "agent": "Matt Bell", "status": "Pending", "invoice_value": 10440.0, "commission_value": 435.0, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "4a49c57f", "order_date": "2026-08-10", "customer": "Flexi Floors Ltd.", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 5548.8, "commission_value": 231.2, "is_1_8m_rolls": true, "products": [{"category": "Stepmax Gold", "qty": 289.0}], "total_qty": 289.0}, {"order_id": "5217dab9", "order_date": "2026-08-10", "customer": "DM MILLER", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 5414.4, "commission_value": 225.6, "is_1_8m_rolls": true, "products": [{"category": "Stepmax Gold", "qty": 300.0}], "total_qty": 300.0}, {"order_id": "b2c8edf3", "order_date": "2026-08-10", "customer": "Flexi Floors Ltd.", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 5318.4, "commission_value": 221.6, "is_1_8m_rolls": true, "products": [{"category": "Stepmax Gold", "qty": 300.0}], "total_qty": 300.0}, {"order_id": "fa5fdbe5", "order_date": "2026-08-10", "customer": "Wooden Valley Ltd T/as Dreamland", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 5068.8, "commission_value": 211.2, "is_1_8m_rolls": true, "products": [{"category": "Steplight White", "qty": 300.0}], "total_qty": 300.0}, {"order_id": "3f00e57a", "order_date": "2026-08-12", "customer": "Witch Group", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 5587.2, "commission_value": 116.4, "is_1_8m_rolls": true, "products": [{"category": "Stepmax Gold", "qty": 300.0}], "total_qty": 300.0}, {"order_id": "e704c38b", "order_date": "2026-08-12", "customer": "Right Carpets", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 5443.2, "commission_value": 226.8, "is_1_8m_rolls": true, "products": [{"category": "Stepezy Red", "qty": 270.0}], "total_qty": 270.0}, {"order_id": "c1b5824b", "order_date": "2026-08-18", "customer": "Flooring world source", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 4600.8, "commission_value": 191.7, "is_1_8m_rolls": true, "products": [{"category": "Stepezy Red", "qty": 262.0}], "total_qty": 262.0}, {"order_id": "e643a964", "order_date": "2026-08-19", "customer": "Anglo Flooring", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 10350.0, "commission_value": 431.25, "is_1_8m_rolls": false, "products": [{"category": "Unbranded 10", "qty": 600.0}], "total_qty": 600.0}, {"order_id": "8f4e224a", "order_date": "2026-08-21", "customer": "FLOORS N CARPETS LTD", "agent": "Matt Bell", "status": "Delivered", "invoice_value": 2844.0, "commission_value": 118.5, "is_1_8m_rolls": false, "products": [{"category": "B grade", "qty": 237.0}], "total_qty": 237.0}, {"order_id": "3cafa748", "order_date": "2026-08-21", "customer": "Manchester Carpet & Flooring", "agent": "Matt Bell", "status": "In Transit", "invoice_value": 6864.0, "commission_value": 286.0, "is_1_8m_rolls": true, "products": [{"category": "Stepeco Green", "qty": 300.0}], "total_qty": 300.0}, {"order_id": "54ef812d", "order_date": "2026-08-24", "customer": "Flooring Storage UK Ltd", "agent": "Jon Marsh", "status": "In Transit", "invoice_value": 15007.5, "commission_value": 625.31, "is_1_8m_rolls": false, "products": [{"category": "Footlove 8", "qty": 125.0}, {"category": "Footlove 10", "qty": 125.0}, {"category": "Footbliss 9", "qty": 125.0}, {"category": "Footluxe 9", "qty": 125.0}], "total_qty": 500.0}, {"order_id": "8ec9f77b", "order_date": "2026-08-24", "customer": "Witch Group", "agent": "Matt Bell", "status": "Goods Ready", "invoice_value": 11797.5, "commission_value": 245.78, "is_1_8m_rolls": false, "products": [{"category": "Footlove 8", "qty": 200.0}, {"category": "Footlove 10", "qty": 300.0}], "total_qty": 500.0}, {"order_id": "8f839be7", "order_date": "2026-08-24", "customer": "Witch Group", "agent": "Matt Bell", "status": "In Production", "invoice_value": 11797.5, "commission_value": 245.78, "is_1_8m_rolls": false, "products": [{"category": "Footlove 8", "qty": 200.0}, {"category": "Footlove 10", "qty": 300.0}], "total_qty": 500.0}, {"order_id": "4a106b2e", "order_date": "2026-08-24", "customer": "Witch Group", "agent": "Matt Bell", "status": "Pending", "invoice_value": 11797.5, "commission_value": 245.78, "is_1_8m_rolls": false, "products": [{"category": "Footlove 8", "qty": 200.0}, {"category": "Footlove 10", "qty": 300.0}], "total_qty": 500.0}];
+
+/* lighter, easily distinguishable palette for the monthly chart */
+const AGENT_COLORS = {
+  "Matt Bell": "#6FA8DC",
+  "Ranjit Aujla": "#F2B84B",
+  "Jon Marsh": "#8FC68A",
+  "Stephen Fell": "#E093A8"
+};
+const FALLBACK_COLORS = ["#6FA8DC","#F2B84B","#8FC68A","#E093A8","#B39DDB","#7FD1C3"];
+function colorFor(agent, idx){
+  return AGENT_COLORS[agent] || FALLBACK_COLORS[idx % FALLBACK_COLORS.length];
+}
+/* darker chip dots for tables, so they stay readable on white rows */
+const AGENT_DOT_COLORS = {
+  "Matt Bell": "#2E6DA4",
+  "Ranjit Aujla": "#A9803D",
+  "Jon Marsh": "#5E6E58",
+  "Stephen Fell": "#A34F68"
+};
+const FALLBACK_DOT_COLORS = ["#2E6DA4","#A9803D","#5E6E58","#A34F68","#6C5AA0","#2E8F7A"];
+function dotColorFor(agent, idx){
+  return AGENT_DOT_COLORS[agent] || FALLBACK_DOT_COLORS[idx % FALLBACK_DOT_COLORS.length];
+}
+
+const VAT_DIVISOR = 1.2;
+const fmtGBP = (n) => '£' + Math.round(n).toLocaleString('en-GB');
+const fmtNum = (n) => Math.round(n).toLocaleString('en-GB');
+
+function monthKey(dateStr){ return dateStr.slice(0,7); }
+function monthLabel(key){
+  const [y,m] = key.split('-');
+  const d = new Date(parseInt(y), parseInt(m)-1, 1);
+  return d.toLocaleDateString('en-GB', {month:'short', year:'numeric'});
+}
+
+const agentSet = Array.from(new Set(RAW_ORDERS.map(o=>o.agent))).sort();
+const agentSelect = document.getElementById('agentSelect');
+agentSet.forEach(a=>{
+  const opt = document.createElement('option');
+  opt.value = a; opt.textContent = a;
+  agentSelect.appendChild(opt);
+});
+
+const allDates = RAW_ORDERS.map(o=>o.order_date).sort();
+document.getElementById('dataRangeLabel').textContent = allDates[0] + '  to  ' + allDates[allDates.length-1];
+document.getElementById('orderCountLabel').textContent = RAW_ORDERS.length + ' total orders in file';
+
+const dateFrom = document.getElementById('dateFrom');
+const dateTo = document.getElementById('dateTo');
+dateFrom.value = allDates[0];
+dateTo.value = allDates[allDates.length-1];
+
+let monthlyChart, productChart;
+
+function getFiltered(){
+  const from = dateFrom.value;
+  const to = dateTo.value;
+  const agent = agentSelect.value;
+  const rollsMode = document.getElementById('rollsFilter').value;
+  return RAW_ORDERS.filter(o=>{
+    if (from && o.order_date < from) return false;
+    if (to && o.order_date > to) return false;
+    if (agent !== 'ALL' && o.agent !== agent) return false;
+    if (rollsMode === 'ONLY' && !o.is_1_8m_rolls) return false;
+    if (rollsMode === 'EXCLUDE' && o.is_1_8m_rolls) return false;
+    return true;
+  });
+}
+
+function render(){
+  const data = getFiltered();
+
+  const totalOrders = data.length;
+  const totalInvoice = data.reduce((s,o)=>s+o.invoice_value,0);
+  const netInvoice = totalInvoice / VAT_DIVISOR;
+  const totalCommission = data.reduce((s,o)=>s+o.commission_value,0);
+  const totalUnits = data.reduce((s,o)=>s+o.total_qty,0);
+
+  document.getElementById('kpiOrders').textContent = fmtNum(totalOrders);
+  document.getElementById('kpiNetInvoice').textContent = fmtGBP(netInvoice);
+  document.getElementById('kpiCommission').textContent = fmtGBP(totalCommission);
+  document.getElementById('kpiUnits').textContent = fmtNum(totalUnits);
+
+  const nAgents = new Set(data.map(o=>o.agent)).size;
+  document.getElementById('kpiOrdersSub').textContent = nAgents + ' agent' + (nAgents!==1?'s':'') + ' active';
+  document.getElementById('kpiNetInvoiceSub').textContent = 'Gross (inc. VAT): ' + fmtGBP(totalInvoice);
+  document.getElementById('kpiCommissionSub').textContent = totalInvoice>0 ? (totalCommission/totalInvoice*100).toFixed(1)+'% of gross invoice' : '\u00a0';
+  document.getElementById('kpiUnitsSub').textContent = totalOrders>0 ? Math.round(totalUnits/totalOrders) + ' avg units / order' : '\u00a0';
+
+  if (data.length === 0){
+    renderEmpty();
+    return;
+  }
+
+  renderMonthlyChart(data);
+  renderAgentTable(data);
+  renderProductChart(data);
+  renderProductTable(data);
+  renderMonthTable(data);
+}
+
+function renderEmpty(){
+  ['agentTable','productTable'].forEach(id=>{
+    document.querySelector('#'+id+' tbody').innerHTML = '<tr><td class="empty-state">No orders match the current filters.</td></tr>';
+    document.querySelector('#'+id+' tfoot').innerHTML = '';
+  });
+  document.getElementById('monthTableHead').innerHTML = '';
+  document.getElementById('monthTableBody').innerHTML = '<tr><td class="empty-state">No orders match the current filters.</td></tr>';
+  if (monthlyChart) monthlyChart.destroy();
+  if (productChart) productChart.destroy();
+}
+
+function renderMonthlyChart(data){
+  const months = Array.from(new Set(data.map(o=>monthKey(o.order_date)))).sort();
+  const agents = Array.from(new Set(data.map(o=>o.agent))).sort();
+
+  const barDatasets = agents.map((a,idx)=>{
+    return {
+      type:'bar',
+      label: a + ' — orders',
+      data: months.map(m => data.filter(o=>o.agent===a && monthKey(o.order_date)===m).length),
+      backgroundColor: colorFor(a, idx),
+      hoverBackgroundColor: colorFor(a, idx),
+      yAxisID: 'y',
+      stack: 'orders',
+      borderRadius:2,
+      borderWidth:0,
+      order: 2
+    };
+  });
+
+  const netInvoiceLine = {
+    type:'line',
+    label:'Net invoice value (all agents)',
+    data: months.map(m => data.filter(o=>monthKey(o.order_date)===m).reduce((s,o)=>s+o.invoice_value,0)/VAT_DIVISOR),
+    borderColor:'#C97B8A',
+    backgroundColor:'#C97B8A',
+    borderWidth:2.5,
+    pointRadius:4,
+    pointBackgroundColor:'#FFFFFF',
+    pointBorderColor:'#C97B8A',
+    pointBorderWidth:2,
+    yAxisID:'y1',
+    tension:0.25,
+    order: 1
+  };
+
+  const ctx = document.getElementById('monthlyChart').getContext('2d');
+  if (monthlyChart) monthlyChart.destroy();
+  monthlyChart = new Chart(ctx, {
+    data: {
+      labels: months.map(monthLabel),
+      datasets: [...barDatasets, netInvoiceLine]
+    },
+    options: {
+      responsive:true,
+      interaction:{mode:'index', intersect:false},
+      plugins:{
+        legend:{position:'bottom', labels:{boxWidth:12, font:{family:"'IBM Plex Sans'", size:11.5}, color:'#5B5548'}},
+        tooltip:{
+          callbacks:{
+            label: function(ctx){
+              if (ctx.dataset.yAxisID === 'y1'){
+                return ctx.dataset.label + ': ' + fmtGBP(ctx.parsed.y);
+              }
+              return ctx.dataset.label + ': ' + ctx.parsed.y;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ stacked:true, grid:{display:false}, ticks:{color:'#5B5548', font:{family:"'IBM Plex Sans'"}} },
+        y:{ stacked:true, position:'left', title:{display:true, text:'Orders', color:'#5B5548'}, grid:{color:'#E4DCCB'}, ticks:{color:'#5B5548'} },
+        y1:{ position:'right', title:{display:true, text:'Net invoice value (£)', color:'#5B5548'}, grid:{display:false}, ticks:{color:'#5B5548', callback:(v)=>'£'+ (v/1000).toFixed(0)+'k'} }
+      }
+    }
+  });
+}
+
+function renderAgentTable(data){
+  const agents = Array.from(new Set(data.map(o=>o.agent)));
+  const rows = agents.map(a=>{
+    const ao = data.filter(o=>o.agent===a);
+    const orders = ao.length;
+    const units = ao.reduce((s,o)=>s+o.total_qty,0);
+    const gross = ao.reduce((s,o)=>s+o.invoice_value,0);
+    const net = gross / VAT_DIVISOR;
+    const comm = ao.reduce((s,o)=>s+o.commission_value,0);
+    const avgOrder = orders>0 ? net/orders : 0;
+    const commPct = gross>0 ? (comm/gross*100) : 0;
+    return {a, orders, units, net, comm, avgOrder, commPct};
+  }).sort((x,y)=>y.net-x.net);
+
+  const tbody = document.querySelector('#agentTable tbody');
+  tbody.innerHTML = rows.map(r=>{
+    const color = dotColorFor(r.a, agents.indexOf(r.a));
+    return `<tr>
+      <td><span class="agent-chip"><span class="dot" style="background:${color}"></span>${r.a}</span></td>
+      <td class="num">${fmtNum(r.orders)}</td>
+      <td class="num">${fmtNum(r.units)}</td>
+      <td class="num">${fmtGBP(r.net)}</td>
+      <td class="num">${fmtGBP(r.comm)}</td>
+      <td class="num">${fmtGBP(r.avgOrder)}</td>
+      <td class="num">${r.commPct.toFixed(1)}%</td>
+    </tr>`;
+  }).join('');
+
+  const totOrders = rows.reduce((s,r)=>s+r.orders,0);
+  const totUnits = rows.reduce((s,r)=>s+r.units,0);
+  const totNet = rows.reduce((s,r)=>s+r.net,0);
+  const totComm = rows.reduce((s,r)=>s+r.comm,0);
+  const totAvg = totOrders>0 ? totNet/totOrders : 0;
+  const totGross = data.reduce((s,o)=>s+o.invoice_value,0);
+  const totCommPct = totGross>0 ? totComm/totGross*100 : 0;
+
+  document.querySelector('#agentTable tfoot').innerHTML = `<tr>
+    <td>Total</td>
+    <td class="num">${fmtNum(totOrders)}</td>
+    <td class="num">${fmtNum(totUnits)}</td>
+    <td class="num">${fmtGBP(totNet)}</td>
+    <td class="num">${fmtGBP(totComm)}</td>
+    <td class="num">${fmtGBP(totAvg)}</td>
+    <td class="num">${totCommPct.toFixed(1)}%</td>
+  </tr>`;
+}
+
+function getCategoryTotals(data){
+  const qtyByCategory = {};
+  data.forEach(o=>{
+    o.products.forEach(p=>{
+      qtyByCategory[p.category] = (qtyByCategory[p.category]||0) + p.qty;
+    });
+  });
+  return qtyByCategory;
+}
+
+function renderProductChart(data){
+  const qtyByCategory = getCategoryTotals(data);
+  const entries = Object.entries(qtyByCategory).sort((a,b)=>b[1]-a[1]);
+  const top = entries.slice(0,12);
+  const otherSum = entries.slice(12).reduce((s,e)=>s+e[1],0);
+  const labels = top.map(e=>e[0]);
+  const values = top.map(e=>e[1]);
+  if (otherSum>0){ labels.push('Other'); values.push(otherSum); }
+
+  const ctx = document.getElementById('productChart').getContext('2d');
+  if (productChart) productChart.destroy();
+  productChart = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{
+        label:'Units ordered',
+        data: values,
+        backgroundColor: '#A9803D',
+        borderRadius:2,
+        barThickness: 14
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:(ctx)=> fmtNum(ctx.parsed.x) + ' units'}}
+      },
+      scales:{
+        x:{grid:{color:'#E4DCCB'}, ticks:{color:'#5B5548'}, title:{display:true,text:'Units', color:'#5B5548'}},
+        y:{grid:{display:false}, ticks:{color:'#231F1A', font:{size:11.5}}}
+      }
+    }
+  });
+}
+
+function renderProductTable(data){
+  const qtyByCategory = getCategoryTotals(data);
+  const totalUnits = Object.values(qtyByCategory).reduce((s,v)=>s+v,0);
+  const entries = Object.entries(qtyByCategory).sort((a,b)=>b[1]-a[1]);
+
+  const tbody = document.querySelector('#productTable tbody');
+  tbody.innerHTML = entries.map(([cat, units])=>{
+    const pct = totalUnits>0 ? (units/totalUnits*100) : 0;
+    return `<tr>
+      <td>${cat}</td>
+      <td class="num">${fmtNum(units)}</td>
+      <td class="num">${pct.toFixed(1)}%</td>
+      <td>
+        <div class="share-bar-track">
+          <div class="share-bar-fill" style="width:${pct.toFixed(1)}%"></div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.querySelector('#productTable tfoot').innerHTML = `<tr>
+    <td>Total</td>
+    <td class="num">${fmtNum(totalUnits)}</td>
+    <td class="num">100.0%</td>
+    <td></td>
+  </tr>`;
+}
+
+function renderMonthTable(data){
+  const months = Array.from(new Set(data.map(o=>monthKey(o.order_date)))).sort();
+  const agents = Array.from(new Set(data.map(o=>o.agent))).sort();
+
+  const head = document.getElementById('monthTableHead');
+  head.innerHTML = '<th>Agent</th>' + months.map(m=>`<th class="num">${monthLabel(m)}</th>`).join('') + '<th class="num">Total</th>';
+
+  const body = document.getElementById('monthTableBody');
+  let rowsHtml = '';
+  agents.forEach((a,idx)=>{
+    const color = dotColorFor(a, idx);
+    let rowTotalOrders = 0, rowTotalNet = 0;
+    const cells = months.map(m=>{
+      const subset = data.filter(o=>o.agent===a && monthKey(o.order_date)===m);
+      const orders = subset.length;
+      const net = subset.reduce((s,o)=>s+o.invoice_value,0)/VAT_DIVISOR;
+      rowTotalOrders += orders; rowTotalNet += net;
+      if (orders===0) return `<td class="num" style="color:#C9BFA8">&mdash;</td>`;
+      return `<td class="num"><span class="month-orders">${orders}</span> <span class="month-invoice">(${fmtGBP(net)})</span></td>`;
+    }).join('');
+    rowsHtml += `<tr><td><span class="agent-chip"><span class="dot" style="background:${color}"></span>${a}</span></td>${cells}<td class="num"><b>${rowTotalOrders}</b> <span class="month-invoice">(${fmtGBP(rowTotalNet)})</span></td></tr>`;
+  });
+
+  let grandOrders = 0, grandNet = 0;
+  const totalCells = months.map(m=>{
+    const subset = data.filter(o=>monthKey(o.order_date)===m);
+    const orders = subset.length;
+    const net = subset.reduce((s,o)=>s+o.invoice_value,0)/VAT_DIVISOR;
+    grandOrders += orders; grandNet += net;
+    return `<td class="num"><span class="month-orders">${orders}</span> <span class="month-invoice">(${fmtGBP(net)})</span></td>`;
+  }).join('');
+  rowsHtml += `<tr style="border-top:2px solid var(--ink);"><td><b>All agents</b></td>${totalCells}<td class="num"><b>${grandOrders}</b> <span class="month-invoice">(${fmtGBP(grandNet)})</span></td></tr>`;
+
+  body.innerHTML = rowsHtml;
+}
+
+document.getElementById('dateFrom').addEventListener('change', render);
+document.getElementById('dateTo').addEventListener('change', render);
+document.getElementById('agentSelect').addEventListener('change', render);
+document.getElementById('rollsFilter').addEventListener('change', render);
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  dateFrom.value = allDates[0];
+  dateTo.value = allDates[allDates.length-1];
+  agentSelect.value = 'ALL';
+  document.getElementById('rollsFilter').value = 'ALL';
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
