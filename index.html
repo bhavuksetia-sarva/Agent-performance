@@ -96,6 +96,28 @@
   }
   .field select{min-width:180px;}
   .field input:focus,.field select:focus{outline:2px solid var(--brass-soft);outline-offset:1px;}
+
+  .multiselect{position:relative;}
+  .ms-button{
+    font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;padding:7px 10px;
+    border:1px solid var(--rule);border-radius:2px;background:var(--paper);color:var(--ink);
+    min-width:190px;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;
+  }
+  .ms-button:after{content:'▾';font-size:10px;color:var(--ink-soft);}
+  .ms-button:focus{outline:2px solid var(--brass-soft);outline-offset:1px;}
+  .ms-panel{
+    position:absolute;top:calc(100% + 4px);left:0;z-index:20;
+    background:var(--panel);border:1px solid var(--rule);border-radius:3px;
+    box-shadow:0 4px 14px rgba(35,31,26,0.16);
+    min-width:230px;max-height:260px;overflow-y:auto;padding:6px 0;
+  }
+  .ms-panel[hidden]{display:none;}
+  .ms-actions{display:flex;gap:12px;padding:4px 12px 8px;border-bottom:1px solid var(--line);margin-bottom:4px;}
+  .ms-link{background:none;border:none;color:var(--brass);font-size:11.5px;font-weight:600;cursor:pointer;padding:0;font-family:'IBM Plex Sans',sans-serif;}
+  .ms-link:hover{text-decoration:underline;}
+  .ms-option{display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:13px;cursor:pointer;}
+  .ms-option:hover{background:#FBF8F1;}
+  .ms-option input{width:14px;height:14px;accent-color:var(--walnut);flex-shrink:0;}
   .reset-btn{
     margin-left:auto;
     background:none;
@@ -243,26 +265,59 @@
       <input type="date" id="dateTo">
     </div>
     <div class="field">
-      <label for="agentSelect">Agent</label>
-      <select id="agentSelect">
-        <option value="ALL">All agents</option>
-      </select>
+      <label for="deliveredFrom">Delivered Date From</label>
+      <input type="date" id="deliveredFrom">
     </div>
     <div class="field">
-      <label for="rollsFilter">1.8m Rolls</label>
-      <select id="rollsFilter">
-        <option value="ALL">All orders</option>
-        <option value="ONLY">1.8m rolls only</option>
-        <option value="EXCLUDE" selected>Exclude 1.8m rolls</option>
-      </select>
+      <label for="deliveredTo">Delivered Date To</label>
+      <input type="date" id="deliveredTo">
     </div>
     <div class="field">
-      <label for="warehouseFilter">Dispatch Warehouse</label>
-      <select id="warehouseFilter">
-        <option value="ALL">All orders (direct + warehouse)</option>
-        <option value="DIRECT">Direct to customer only</option>
-        <option value="WAREHOUSE_ALL">All warehouse deliveries</option>
-      </select>
+      <label for="dispatchFrom">Dispatch Date From</label>
+      <input type="date" id="dispatchFrom">
+    </div>
+    <div class="field">
+      <label for="dispatchTo">Dispatch Date To</label>
+      <input type="date" id="dispatchTo">
+    </div>
+    <div class="field">
+      <label>Agent</label>
+      <div class="multiselect" id="msAgentWrap">
+        <button type="button" class="ms-button" id="msAgentBtn">All agents</button>
+        <div class="ms-panel" id="msAgentPanel" hidden>
+          <div class="ms-actions">
+            <button type="button" class="ms-link" data-ms="agent" data-action="all">Select all</button>
+            <button type="button" class="ms-link" data-ms="agent" data-action="none">Clear all</button>
+          </div>
+          <div class="ms-options" id="msAgentOptions"></div>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>1.8m Rolls</label>
+      <div class="multiselect" id="msRollsWrap">
+        <button type="button" class="ms-button" id="msRollsBtn">Standard orders</button>
+        <div class="ms-panel" id="msRollsPanel" hidden>
+          <div class="ms-actions">
+            <button type="button" class="ms-link" data-ms="rolls" data-action="all">Select all</button>
+            <button type="button" class="ms-link" data-ms="rolls" data-action="none">Clear all</button>
+          </div>
+          <div class="ms-options" id="msRollsOptions"></div>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Dispatch Channel</label>
+      <div class="multiselect" id="msChannelWrap">
+        <button type="button" class="ms-button" id="msChannelBtn">All channels</button>
+        <div class="ms-panel" id="msChannelPanel" hidden>
+          <div class="ms-actions">
+            <button type="button" class="ms-link" data-ms="channel" data-action="all">Select all</button>
+            <button type="button" class="ms-link" data-ms="channel" data-action="none">Clear all</button>
+          </div>
+          <div class="ms-options" id="msChannelOptions"></div>
+        </div>
+      </div>
     </div>
     <button class="reset-btn" id="resetBtn">Reset filters</button>
   </div>
@@ -357,28 +412,33 @@
   </div>
 
   <footer id="footerNote">
-    Invoice values shown net of 20% VAT (invoice value &divide; 1.2). Default view excludes 1.8m rolls orders &mdash; use the filters above to include/isolate rolls orders, or to view direct-to-customer vs. local warehouse deliveries separately.
+    Invoice values shown net of 20% VAT (invoice value &divide; 1.2). Default view: Order Date from 1 April 2026, standard orders only (1.8m rolls excluded), Dalbeer excluded from agents, all dispatch channels included. Use "Reset filters" to return to this view at any time, or tick/untick any value in the Agent, 1.8m Rolls, or Dispatch Channel dropdowns.
   </footer>
 
 </div>
 
 <script>
 /* ============================================================
-   CONFIG — paste your two CSV export links here.
+   CONFIG — paste your two CSV links here.
 
-   IMPORTANT: this must be a direct CSV-export link, not the normal
-   "share" link. Test each link by opening it in a new browser tab —
-   it should immediately show/download raw comma-separated text, not
-   the normal spreadsheet view.
+   IMPORTANT: use "Publish to web" links, not the normal export/share
+   link. Google's plain /export?format=csv link relies on your login
+   session, which works when you paste it into the address bar but
+   is NOT sent along with a background fetch() request from this page
+   — so it silently serves a login page instead of your data. The
+   "Publish to web" link has no such login requirement and is built
+   for exactly this kind of embedding.
 
-   Easiest way to build the link:
-     1. Share the sheet as "Anyone with the link — Viewer".
-     2. From the sheet's normal URL, grab the SHEET_ID (between /d/
-        and /edit) and the GID of the specific tab (after #gid=,
-        or 0 for the first tab).
-     3. Use: https://docs.google.com/spreadsheets/d/SHEET_ID/export?format=csv&gid=GID
+   How to get it, for EACH sheet/tab:
+     1. Open the sheet → File > Share > Publish to web
+     2. Under "Link", choose the specific tab (not "Entire document")
+     3. Set format to "Comma-separated values (.csv)"
+     4. Click Publish → copy the link it gives you
+        (looks like: https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=csv)
 
-   (A "File > Share > Publish to web" CSV link also works.)
+   Test each link by opening it in a new private/incognito browser
+   window — it should show raw CSV text immediately, with no login
+   prompt of any kind.
    ============================================================ */
 const SHEET_CONFIG = {
   direct: {
@@ -451,8 +511,20 @@ function parseNum(val){
 function normalizeDate(val){
   if (!val) return null;
   const s = String(val).trim();
+  // ISO: 2026-07-17
   let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  // D-Mon-YY or D-Mon-YYYY: 06-May-25, 23-Sep-2025
+  const MONTHS = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+  m = s.match(/^(\d{1,2})-([A-Za-z]{3,})-(\d{2,4})$/);
+  if (m){
+    const dd = parseInt(m[1],10);
+    const mon = MONTHS[m[2].toLowerCase().slice(0,3)];
+    let yy = m[3];
+    if (yy.length === 2) yy = (parseInt(yy,10) < 50 ? '20' : '19') + yy;
+    if (mon) return `${yy}-${String(mon).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+  }
+  // D/M/YYYY or M/D/YYYY
   m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (m){
     const a = parseInt(m[1],10), b = parseInt(m[2],10), y = m[3];
@@ -460,6 +532,7 @@ function normalizeDate(val){
     const dd = a <= 12 ? b : a;
     return `${y}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
   }
+  // last resort: native Date parsing
   const d = new Date(s);
   if (!isNaN(d.getTime())) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -495,6 +568,8 @@ function mapDirectRow(row){
   return {
     order_id: explicitId || simpleHash(`${orderDate}-${customer}-${agent}-direct`),
     order_date: orderDate,
+    delivered_date: normalizeDate(getVal(row, 'Delivered Date')),
+    dispatch_date: normalizeDate(getVal(row, 'Dispatch Date', 'Dispatch date')),
     customer: customer,
     agent: String(agent).trim(),
     status: getVal(row, 'Order Status', 'Status') || '',
@@ -521,6 +596,8 @@ function mapWarehouseRow(row){
   return {
     order_id: simpleHash(`${invoiceNo}-${customer}-${orderDate}-${agent}-warehouse`),
     order_date: orderDate,
+    delivered_date: normalizeDate(getVal(row, 'Delivered Date')),
+    dispatch_date: normalizeDate(getVal(row, 'Dispatch Date', 'Dispatch date')),
     customer: customer,
     agent: String(agent).trim(),
     status: getVal(row, 'Order Status', 'Status') || '',
@@ -543,7 +620,7 @@ async function fetchCsv(url, label){
   const text = await res.text();
   const trimmed = text.trim();
   if (trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html') || trimmed.startsWith('<?xml')){
-    throw new Error(`${label} sheet returned a web page instead of CSV data. This almost always means the URL is the normal "share" link rather than a CSV export link. Use https://docs.google.com/spreadsheets/d/SHEET_ID/export?format=csv&gid=GID (or a Publish to web → CSV link), and make sure the sheet is shared as "Anyone with the link — Viewer".`);
+    throw new Error(`${label} sheet returned a web page instead of CSV data — this is almost always a login page, because the URL is relying on your browser session rather than being truly public. Use a "Publish to web" CSV link instead (File > Share > Publish to web > pick the tab > CSV format > Publish), which works without any login. Test the link in an incognito window first — it should show raw CSV with no login prompt.`);
   }
   const parsed = Papa.parse(trimmed, { header: true, skipEmptyLines: true });
   return parsed.data;
@@ -584,32 +661,81 @@ async function boot(){
 }
 
 /* ---------- one-time-per-load UI setup (dropdowns, date range, listeners) ---------- */
-let dateFrom, dateTo, agentSelect, warehouseSelect, allDates;
+let dateFrom, dateTo, allDates;
 let monthlyChart, productChart;
 
+const DEFAULT_DATE_FROM = '2026-04-01';
+const DEFAULT_EXCLUDED_AGENTS = ['dalbeer']; // lowercase, trimmed match
+
+const filterState = { agent: new Set(), rolls: new Set(), channel: new Set() };
+const MS = {};
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function buildMultiselect(key, items, btnId, panelId, optionsId, allLabel){
+  MS[key] = {items, btnId, panelId, optionsId, allLabel};
+  renderMsOptions(key);
+  updateMsButton(key);
+}
+
+function renderMsOptions(key){
+  const {items, optionsId} = MS[key];
+  const optionsEl = document.getElementById(optionsId);
+  optionsEl.innerHTML = items.map(it => `
+    <label class="ms-option">
+      <input type="checkbox" value="${escapeHtml(it.value)}" ${filterState[key].has(it.value)?'checked':''}>
+      <span>${escapeHtml(it.label)}</span>
+    </label>`).join('');
+  optionsEl.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      if (cb.checked) filterState[key].add(cb.value); else filterState[key].delete(cb.value);
+      updateMsButton(key);
+      render();
+    });
+  });
+}
+
+function updateMsButton(key){
+  const {items, btnId, allLabel} = MS[key];
+  const btn = document.getElementById(btnId);
+  const sel = filterState[key];
+  if (sel.size === items.length) btn.textContent = allLabel;
+  else if (sel.size === 0) btn.textContent = 'None selected';
+  else if (sel.size <= 2) btn.textContent = items.filter(i=>sel.has(i.value)).map(i=>i.label).join(', ');
+  else btn.textContent = sel.size + ' of ' + items.length + ' selected';
+}
+
+function wireMsToggle(btnId, panelId){
+  document.getElementById(btnId).addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const panel = document.getElementById(panelId);
+    document.querySelectorAll('.ms-panel').forEach(p=>{ if(p.id!==panelId) p.hidden = true; });
+    panel.hidden = !panel.hidden;
+  });
+}
+
+function applyDefaultView(){
+  dateFrom.value = DEFAULT_DATE_FROM;
+  dateTo.value = allDates[allDates.length-1];
+  document.getElementById('deliveredFrom').value = '';
+  document.getElementById('deliveredTo').value = '';
+  document.getElementById('dispatchFrom').value = '';
+  document.getElementById('dispatchTo').value = '';
+
+  filterState.agent = new Set(
+    MS.agent.items
+      .filter(i => !DEFAULT_EXCLUDED_AGENTS.includes(i.value.trim().toLowerCase()))
+      .map(i => i.value)
+  );
+  filterState.rolls = new Set(['STANDARD']);
+  filterState.channel = new Set(MS.channel.items.map(i => i.value));
+
+  ['agent','rolls','channel'].forEach(key=>{ renderMsOptions(key); updateMsButton(key); });
+}
+
 function initUI(){
-  agentSelect = document.getElementById('agentSelect');
-  agentSelect.innerHTML = '<option value="ALL">All agents</option>';
-  const agentSet = Array.from(new Set(RAW_ORDERS.map(o=>o.agent))).sort();
-  agentSet.forEach(a=>{
-    const opt = document.createElement('option');
-    opt.value = a; opt.textContent = a;
-    agentSelect.appendChild(opt);
-  });
-
-  warehouseSelect = document.getElementById('warehouseFilter');
-  warehouseSelect.innerHTML = `
-    <option value="ALL">All orders (direct + warehouse)</option>
-    <option value="DIRECT">Direct to customer only</option>
-    <option value="WAREHOUSE_ALL">All warehouse deliveries</option>`;
-  const warehouseNames = Array.from(new Set(RAW_ORDERS.filter(o=>o.dispatch_warehouse).map(o=>o.dispatch_warehouse))).sort();
-  warehouseNames.forEach(w=>{
-    const opt = document.createElement('option');
-    opt.value = 'WH::' + w;
-    opt.textContent = w + ' only';
-    warehouseSelect.appendChild(opt);
-  });
-
   allDates = RAW_ORDERS.map(o=>o.order_date).sort();
   document.getElementById('dataRangeLabel').textContent = allDates[0] + '  to  ' + allDates[allDates.length-1];
   document.getElementById('orderCountLabel').textContent = RAW_ORDERS.length + ' total orders loaded';
@@ -619,21 +745,59 @@ function initUI(){
 
   dateFrom = document.getElementById('dateFrom');
   dateTo = document.getElementById('dateTo');
-  dateFrom.value = allDates[0];
-  dateTo.value = allDates[allDates.length-1];
+
+  const agentNames = Array.from(new Set(RAW_ORDERS.map(o=>o.agent))).sort();
+  const warehouseNames = Array.from(new Set(RAW_ORDERS.filter(o=>o.dispatch_warehouse).map(o=>o.dispatch_warehouse))).sort();
+
+  buildMultiselect('agent',
+    agentNames.map(a=>({value:a, label:a})),
+    'msAgentBtn','msAgentPanel','msAgentOptions','All agents');
+
+  buildMultiselect('rolls',
+    [{value:'STANDARD', label:'Standard orders'}, {value:'ROLLS', label:'1.8m rolls'}],
+    'msRollsBtn','msRollsPanel','msRollsOptions','All orders');
+
+  buildMultiselect('channel',
+    [{value:'DIRECT', label:'Direct to customer'}, ...warehouseNames.map(w=>({value:w, label:w}))],
+    'msChannelBtn','msChannelPanel','msChannelOptions','All channels');
+
+  applyDefaultView();
 
   if (!uiInitialized){
     dateFrom.addEventListener('change', render);
     dateTo.addEventListener('change', render);
-    agentSelect.addEventListener('change', render);
-    document.getElementById('rollsFilter').addEventListener('change', render);
-    warehouseSelect.addEventListener('change', render);
+    document.getElementById('deliveredFrom').addEventListener('change', render);
+    document.getElementById('deliveredTo').addEventListener('change', render);
+    document.getElementById('dispatchFrom').addEventListener('change', render);
+    document.getElementById('dispatchTo').addEventListener('change', render);
+
+    wireMsToggle('msAgentBtn','msAgentPanel');
+    wireMsToggle('msRollsBtn','msRollsPanel');
+    wireMsToggle('msChannelBtn','msChannelPanel');
+
+    document.addEventListener('click', (e)=>{
+      document.querySelectorAll('.multiselect').forEach(ms=>{
+        if (!ms.contains(e.target)){
+          const p = ms.querySelector('.ms-panel');
+          if (p) p.hidden = true;
+        }
+      });
+    });
+
+    document.querySelectorAll('.ms-link').forEach(linkBtn=>{
+      linkBtn.addEventListener('click', ()=>{
+        const key = linkBtn.dataset.ms;
+        const action = linkBtn.dataset.action;
+        if (action === 'all') filterState[key] = new Set(MS[key].items.map(i=>i.value));
+        else filterState[key] = new Set();
+        renderMsOptions(key);
+        updateMsButton(key);
+        render();
+      });
+    });
+
     document.getElementById('resetBtn').addEventListener('click', ()=>{
-      dateFrom.value = allDates[0];
-      dateTo.value = allDates[allDates.length-1];
-      agentSelect.value = 'ALL';
-      document.getElementById('rollsFilter').value = 'EXCLUDE';
-      warehouseSelect.value = 'ALL';
+      applyDefaultView();
       render();
     });
     document.getElementById('refreshBtn').addEventListener('click', boot);
@@ -644,18 +808,34 @@ function initUI(){
 function getFiltered(){
   const from = dateFrom.value;
   const to = dateTo.value;
-  const agent = agentSelect.value;
-  const rollsMode = document.getElementById('rollsFilter').value;
-  const warehouseMode = warehouseSelect.value;
+  const delivFrom = document.getElementById('deliveredFrom').value;
+  const delivTo = document.getElementById('deliveredTo').value;
+  const dispFrom = document.getElementById('dispatchFrom').value;
+  const dispTo = document.getElementById('dispatchTo').value;
+
   return RAW_ORDERS.filter(o=>{
     if (from && o.order_date < from) return false;
     if (to && o.order_date > to) return false;
-    if (agent !== 'ALL' && o.agent !== agent) return false;
-    if (rollsMode === 'ONLY' && !o.is_1_8m_rolls) return false;
-    if (rollsMode === 'EXCLUDE' && o.is_1_8m_rolls) return false;
-    if (warehouseMode === 'DIRECT' && o.source !== 'Direct') return false;
-    if (warehouseMode === 'WAREHOUSE_ALL' && o.source !== 'Warehouse') return false;
-    if (warehouseMode.startsWith('WH::') && o.dispatch_warehouse !== warehouseMode.slice(4)) return false;
+
+    if (delivFrom || delivTo){
+      if (!o.delivered_date) return false;
+      if (delivFrom && o.delivered_date < delivFrom) return false;
+      if (delivTo && o.delivered_date > delivTo) return false;
+    }
+    if (dispFrom || dispTo){
+      if (!o.dispatch_date) return false;
+      if (dispFrom && o.dispatch_date < dispFrom) return false;
+      if (dispTo && o.dispatch_date > dispTo) return false;
+    }
+
+    if (!filterState.agent.has(o.agent)) return false;
+
+    const rollsKey = o.is_1_8m_rolls ? 'ROLLS' : 'STANDARD';
+    if (!filterState.rolls.has(rollsKey)) return false;
+
+    const channelKey = o.source === 'Direct' ? 'DIRECT' : o.dispatch_warehouse;
+    if (!filterState.channel.has(channelKey)) return false;
+
     return true;
   });
 }
