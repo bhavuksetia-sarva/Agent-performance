@@ -364,8 +364,21 @@
 
 <script>
 /* ============================================================
-   CONFIG — paste your two published-CSV Google Sheets links here.
-   File > Share > Publish to web > (pick the tab) > CSV > Publish
+   CONFIG — paste your two CSV export links here.
+
+   IMPORTANT: this must be a direct CSV-export link, not the normal
+   "share" link. Test each link by opening it in a new browser tab —
+   it should immediately show/download raw comma-separated text, not
+   the normal spreadsheet view.
+
+   Easiest way to build the link:
+     1. Share the sheet as "Anyone with the link — Viewer".
+     2. From the sheet's normal URL, grab the SHEET_ID (between /d/
+        and /edit) and the GID of the specific tab (after #gid=,
+        or 0 for the first tab).
+     3. Use: https://docs.google.com/spreadsheets/d/SHEET_ID/export?format=csv&gid=GID
+
+   (A "File > Share > Publish to web" CSV link also works.)
    ============================================================ */
 const SHEET_CONFIG = {
   direct: {
@@ -522,16 +535,18 @@ function mapWarehouseRow(row){
 }
 
 /* ---------- fetch + parse a published CSV sheet ---------- */
-function fetchCsv(url){
-  return new Promise((resolve, reject)=>{
-    Papa.parse(url, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: (res) => resolve(res.data),
-      error: (err) => reject(err)
-    });
-  });
+async function fetchCsv(url, label){
+  const res = await fetch(url);
+  if (!res.ok){
+    throw new Error(`${label} sheet: HTTP ${res.status} — check the link is correct and the sheet is shared publicly.`);
+  }
+  const text = await res.text();
+  const trimmed = text.trim();
+  if (trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html') || trimmed.startsWith('<?xml')){
+    throw new Error(`${label} sheet returned a web page instead of CSV data. This almost always means the URL is the normal "share" link rather than a CSV export link. Use https://docs.google.com/spreadsheets/d/SHEET_ID/export?format=csv&gid=GID (or a Publish to web → CSV link), and make sure the sheet is shared as "Anyone with the link — Viewer".`);
+  }
+  const parsed = Papa.parse(trimmed, { header: true, skipEmptyLines: true });
+  return parsed.data;
 }
 
 /* ---------- boot: load both sheets, then hand off to the existing dashboard logic ---------- */
@@ -546,14 +561,15 @@ async function boot(){
       throw new Error('Add your published CSV links in SHEET_CONFIG at the top of the script.');
     }
     const [directRows, warehouseRows] = await Promise.all([
-      fetchCsv(SHEET_CONFIG.direct.url),
-      fetchCsv(SHEET_CONFIG.warehouse.url)
+      fetchCsv(SHEET_CONFIG.direct.url, 'Direct orders'),
+      fetchCsv(SHEET_CONFIG.warehouse.url, 'Warehouse deliveries')
     ]);
     const direct = directRows.map(mapDirectRow).filter(Boolean);
     const warehouse = warehouseRows.map(mapWarehouseRow).filter(Boolean);
     const combined = [...direct, ...warehouse];
     if (combined.length === 0){
-      throw new Error('Both sheets loaded but no usable rows were found — check the column headers match what the dashboard expects (Agent Name, Order Date, Invoice Value, etc).');
+      const sampleHeaders = directRows[0] ? Object.keys(directRows[0]).join(', ') : '(no columns found)';
+      throw new Error(`Both sheets loaded but no usable rows were found. Detected columns in the direct-orders sheet: ${sampleHeaders}. Check that "Agent Name" and "Order Date" columns exist with those exact names.`);
     }
     RAW_ORDERS = combined;
     setStatus('', false);
