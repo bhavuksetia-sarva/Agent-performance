@@ -281,6 +281,14 @@
       <input type="date" id="dispatchTo">
     </div>
     <div class="field">
+      <label for="requestedFrom">Customer Requested Date From</label>
+      <input type="date" id="requestedFrom">
+    </div>
+    <div class="field">
+      <label for="requestedTo">Customer Requested Date To</label>
+      <input type="date" id="requestedTo">
+    </div>
+    <div class="field">
       <label>Agent</label>
       <div class="multiselect" id="msAgentWrap">
         <button type="button" class="ms-button" id="msAgentBtn">All agents</button>
@@ -570,6 +578,7 @@ function mapDirectRow(row){
     order_date: orderDate,
     delivered_date: normalizeDate(getVal(row, 'Delivered Date')),
     dispatch_date: normalizeDate(getVal(row, 'Dispatch Date', 'Dispatch date')),
+    requested_date: normalizeDate(getVal(row, 'Customer Requested Date')),
     customer: customer,
     agent: String(agent).trim(),
     status: getVal(row, 'Order Status', 'Status') || '',
@@ -598,6 +607,7 @@ function mapWarehouseRow(row){
     order_date: orderDate,
     delivered_date: normalizeDate(getVal(row, 'Delivered Date')),
     dispatch_date: normalizeDate(getVal(row, 'Dispatch Date', 'Dispatch date')),
+    requested_date: normalizeDate(getVal(row, 'Customer Requested Date')),
     customer: customer,
     agent: String(agent).trim(),
     status: getVal(row, 'Order Status', 'Status') || '',
@@ -723,6 +733,8 @@ function applyDefaultView(){
   document.getElementById('deliveredTo').value = '';
   document.getElementById('dispatchFrom').value = '';
   document.getElementById('dispatchTo').value = '';
+  document.getElementById('requestedFrom').value = '';
+  document.getElementById('requestedTo').value = '';
 
   filterState.agent = new Set(
     MS.agent.items
@@ -770,6 +782,8 @@ function initUI(){
     document.getElementById('deliveredTo').addEventListener('change', render);
     document.getElementById('dispatchFrom').addEventListener('change', render);
     document.getElementById('dispatchTo').addEventListener('change', render);
+    document.getElementById('requestedFrom').addEventListener('change', render);
+    document.getElementById('requestedTo').addEventListener('change', render);
 
     wireMsToggle('msAgentBtn','msAgentPanel');
     wireMsToggle('msRollsBtn','msRollsPanel');
@@ -812,6 +826,8 @@ function getFiltered(){
   const delivTo = document.getElementById('deliveredTo').value;
   const dispFrom = document.getElementById('dispatchFrom').value;
   const dispTo = document.getElementById('dispatchTo').value;
+  const reqFrom = document.getElementById('requestedFrom').value;
+  const reqTo = document.getElementById('requestedTo').value;
 
   return RAW_ORDERS.filter(o=>{
     if (from && o.order_date < from) return false;
@@ -826,6 +842,11 @@ function getFiltered(){
       if (!o.dispatch_date) return false;
       if (dispFrom && o.dispatch_date < dispFrom) return false;
       if (dispTo && o.dispatch_date > dispTo) return false;
+    }
+    if (reqFrom || reqTo){
+      if (!o.requested_date) return false;
+      if (reqFrom && o.requested_date < reqFrom) return false;
+      if (reqTo && o.requested_date > reqTo) return false;
     }
 
     if (!filterState.agent.has(o.agent)) return false;
